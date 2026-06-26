@@ -18,8 +18,9 @@ tools:
     toolsets: [default]
 
 safe-outputs:
-  update-issue:
-    max: 1
+  add-labels:
+    allowed: [bug, feature, question, documentation]
+    max: 3
 ---
 
 新しい issue の内容を読んで、適切なラベルをつけてください。
