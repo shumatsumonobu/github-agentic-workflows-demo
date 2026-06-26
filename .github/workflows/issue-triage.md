@@ -16,6 +16,10 @@ engine:
 tools:
   github:
     toolsets: [default]
+
+safe-outputs:
+  update-issue:
+    max: 1
 ---
 
 新しい issue の内容を読んで、適切なラベルをつけてください。

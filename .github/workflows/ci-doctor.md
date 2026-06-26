@@ -18,6 +18,10 @@ engine:
 tools:
   github:
     toolsets: [default]
+
+safe-outputs:
+  add-comment:
+    max: 1
 ---
 
 CI が失敗したとき、ワークフローのログを読んで以下をコメントしてください。
