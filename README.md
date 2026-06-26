@@ -13,7 +13,7 @@
 
 ## このデモで試せること
 
-`.github/workflows/` に以下の2つの Agentic Workflow（Markdown ファイル）を追加して試す
+以下の2つの Agentic Workflow（Markdown ファイル）が `.github/workflows/` に入っている
 
 | ファイル | 何が起きるか |
 |---------|------------|
@@ -27,6 +27,10 @@
 
 ## セットアップ
 
+このリポを fork した場合、ワークフローファイルは既に入っている。シークレット設定（手順 #3）だけで動く。
+
+自分のリポに導入する場合は #0 から順に進めてください。
+
 ### 前提
 
 - [GitHub CLI](https://cli.github.com/) がインストール済み
@@ -35,6 +39,10 @@
 ### 手順
 
 ```bash
+# 0. GitHub CLI の認証（workflow スコープが必須）
+#    未設定だと gh aw が「not authenticated」になる
+gh auth login --scopes repo,workflow
+
 # 1. gh-aw 拡張をインストール
 gh extension install github/gh-aw
 
@@ -44,12 +52,16 @@ gh aw init
 # 3. Gemini API キーをリポのシークレットに登録
 gh secret set GEMINI_API_KEY
 
-# 4. ワークフローを追加（ウィザードで）
+# 4. ワークフローを追加
+#    → .github/workflows/ に Markdown ファイルが生成される
+#    ⚠️ Windows（Git Bash）ではウィザードが動かない場合がある
+#    　 その場合は .md を手動で作成（詳細は下の「ワークフローの追加方法」）
 gh aw add-wizard githubnext/agentics/issue-triage
 gh aw add-wizard githubnext/agentics/ci-doctor
 
 # 5. .github/workflows/*.md を読んで .lock.yml（YAML）を自動生成
-gh aw compile
+#    --approve: シークレット（GEMINI_API_KEY）の使用を承認
+gh aw compile --approve
 
 # 6. コミット & プッシュ
 git add .github/workflows/
@@ -59,14 +71,16 @@ git push
 
 ### ワークフローの追加方法
 
-手順 #4 はウィザードを使ったが、手動で書くこともできる
+手順 #4 には2つの方法がある
 
-| 方法 | やり方 | 向いてる人 |
-|------|--------|-----------|
-| **ウィザード** | `gh aw add-wizard githubnext/agentics/issue-triage` | 初めての人。対話形式でエンジン選択やシークレット設定まで案内してくれる |
-| **手動** | `.github/workflows/xxx.md` を自分で書く | 自由にカスタマイズしたい人 |
+| 方法 | やり方 | 備考 |
+|------|--------|------|
+| **ウィザード** | `gh aw add-wizard githubnext/agentics/issue-triage` | 対話形式で案内してくれる。Linux / macOS / WSL 向き |
+| **手動** | `.github/workflows/xxx.md` を自分で書く | Windows（Git Bash）ではこちらが確実 |
 
 どちらも最終的に `.github/workflows/` に Markdown + `.lock.yml` ができる。入口が違うだけ。
+
+手動で書く場合のフォーマットはこのリポの `issue-triage.md` / `ci-doctor.md` を参考にしてください。
 
 API キーはリポのシークレットに保存する（手順 #3）。Markdown 側は `engine: gemini` と書くだけで、実行時に自動で繋がる。キーがコードに載ることはない。
 
@@ -134,10 +148,15 @@ engine:
 ```
 ├── package.json
 ├── src/
-│   ├── utils.js          ← add / subtract / multiply / divide の4関数
-│   └── utils.test.js     ← vitest で6テスト
+│   ├── utils.js              ← add / subtract / multiply / divide の4関数
+│   └── utils.test.js         ← vitest で6テスト
 └── .github/workflows/
-    └── ci.yml            ← push / PR 時にテスト実行
+    ├── aw.json               ← gh aw init で生成された設定
+    ├── ci.yml                ← push / PR 時にテスト実行
+    ├── issue-triage.md       ← issue 自動ラベル付け（Agentic Workflow）
+    ├── issue-triage.lock.yml ← ↑ から自動生成された YAML
+    ├── ci-doctor.md          ← CI 失敗分析（Agentic Workflow）
+    └── ci-doctor.lock.yml    ← ↑ から自動生成された YAML
 ```
 
 シンプルな Node.js プロジェクト + CI だけの最小構成
