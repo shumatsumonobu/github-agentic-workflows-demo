@@ -53,23 +53,39 @@ safe-outputs:           # ここで書き込み操作を許可
 Error: Create Artifact Container failed: The artifact name activation is not valid.
 ```
 
-**原因**: `actions/upload-artifact@v4` の既知バグ（[Issue #490](https://github.com/actions/upload-artifact/issues/490)、オープン・未修正）。クライアント側で「Artifact name is valid!」と表示された直後に API が 400 を返す。GitHub サーバー側の断続的な問題で、ステータスページにインシデントとして報告されないことが多い。
+**原因**: `gh aw compile` が生成する `.lock.yml` が `actions/upload-artifact@v3.2.2` を使っている。v3 の artifact API は一部のリポで 400 エラーを返す。
 
-Re-run 時は同一 run_id 内でアーティファクト名 `activation` が衝突し、確実に失敗する。
+**対処**: `.lock.yml` 内の `upload-artifact` と `download-artifact` を v4 に書き換える。
 
-gh-aw の audit によると成功率は約 89%（10回に1回は失敗する）。Public Preview の現時点では不安定さが残る。
+```bash
+# issue-triage.lock.yml と ci-doctor.lock.yml の両方で実行
+# upload-artifact を v4 に
+sed -i 's|actions/upload-artifact@c6a366c94c3e0affe28c06c8df20a878f24da3cf # v3.2.2|actions/upload-artifact@v4|g' .github/workflows/*.lock.yml
 
-**対処**:
-- **Re-run は使わない**。新しい issue / push で新規 run をトリガーする
-- 新規 run でも失敗する場合は GitHub 側の一時的なインフラ問題。数時間おいて再試行
-- `gh aw audit <run-id>` でデバッグ情報を確認できる
-- 解消しない場合は [github/gh-aw](https://github.com/github/gh-aw/issues) に Issue 報告
+# download-artifact も v4 に（v3 と v4 の artifact API に互換性がないため）
+sed -i 's|actions/download-artifact@a9bc5e6ef2cb54c177f32aa5726adaa15e7e2d59 # v3.1.0|actions/download-artifact@v4|g' .github/workflows/*.lock.yml
+```
+
+注意:
+- `.lock.yml` は「DO NOT EDIT」と書かれているが、v3 → v4 の変更は動作に問題なし（検証済み）
+- `gh aw compile` を再実行すると v3 に戻るので、compile 後に毎回この置換が必要
+- gh-aw 側のバグ。将来のバージョンで修正される可能性あり
 
 **関連 Issue**:
 - [actions/upload-artifact #490](https://github.com/actions/upload-artifact/issues/490) — 断続的な「artifact name is not valid」400 エラー（オープン）
 - [actions/upload-artifact #410](https://github.com/actions/upload-artifact/issues/410) — intermittent 400 エラー
-- [actions/upload-artifact #478](https://github.com/actions/upload-artifact/issues/478) — 同名アーティファクトの衝突
 - [github/gh-aw #29499](https://github.com/github/gh-aw/issues/29499) — `include-hidden-files` 不足（修正済み）
+
+### Gemini 無料枠のレートリミット
+
+```
+Quota exceeded for metric: generate_content_free_tier_requests
+limit: 20, model: gemini-3-flash
+```
+
+**原因**: Gemini 無料枠は 1 日あたりのリクエスト数に制限がある（gemini-3-flash で 20 回/日）。テストを繰り返すと使い切る。
+
+**対処**: 翌日にリセットされるので待つ。有料プランにアップグレードすれば制限が緩和される。
 
 ### Ci Doctor が CI 成功時にも起動して失敗する
 
@@ -77,8 +93,9 @@ gh-aw の audit によると成功率は約 89%（10回に1回は失敗する）
 
 **対処**: 想定内の挙動。CI が失敗したときだけ意味のあるコメントがつく。
 
-## 現在の状況（2026-06-27）
+## 現在の状況（2026-06-28）
 
-- **Issue Triage**: activation の artifact upload エラーで動作未確認
-- **Ci Doctor**: 同上
-- **次のアクション**: 時間をおいて新しい issue で再テスト
+- **upload-artifact v3→v4 修正**: lock ファイルを手動修正済み。activation ステップは突破確認
+- **Issue Triage**: activation 通過 → agent 起動 → Gemini の無料枠レートリミットで失敗。翌日リセット後に再テスト
+- **Ci Doctor**: 同上（activation は同じ修正で通過するはず）
+- **次のアクション**: Gemini のクォータリセット後に新しい issue で再テスト
